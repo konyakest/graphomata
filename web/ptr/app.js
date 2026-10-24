@@ -470,7 +470,23 @@
         if (this.running) { this.stopTimer(); this.startTimer(); }
       };
 
-      this.selectLevel(0);
+      const last = this.loadLast();
+      if (last) {
+        this.lang = last.lang === "cpp" ? "cpp" : "py";
+        this.editor.lang = this.lang;
+        $("lang-py").classList.toggle("on", this.lang === "py");
+        $("lang-cpp").classList.toggle("on", this.lang === "cpp");
+        $("file-name").textContent = this.lang === "cpp" ? "solution.cpp" : "solution.py";
+        this.selectLevel(Math.max(0, Math.min(LEVELS.length - 1, last.level | 0)));
+        if (last.case >= 0 && last.case < this.cases.length) {
+          this.caseIndex = last.case;
+          this.reset();
+          this.saveLast();
+        }
+      } else {
+        this.selectLevel(0);
+      }
+      this.updateProgress();
       this.loop();
     }
 
@@ -488,6 +504,33 @@
       this.buildTabs();
       this.loadCode();
       this.reset();
+      this.saveLast();
+    }
+
+    loadLast() {
+      try {
+        return JSON.parse(localStorage.getItem("ptr.last") || "null");
+      } catch (e) {
+        return null;
+      }
+    }
+
+    saveLast() {
+      localStorage.setItem("ptr.last", JSON.stringify({
+        level: this.levelIndex,
+        lang: this.lang,
+        case: this.caseIndex,
+      }));
+    }
+
+    updateProgress() {
+      let py = 0, cpp = 0;
+      for (const lv of LEVELS) {
+        if (localStorage.getItem(`ptr.solved.${lv.id}.py`)) py++;
+        if (localStorage.getItem(`ptr.solved.${lv.id}.cpp`)) cpp++;
+      }
+      const el = $("progress");
+      if (el) el.textContent = `进度 Python ${py}/${LEVELS.length} · C++ ${cpp}/${LEVELS.length}`;
     }
 
     loadCode() {
@@ -540,6 +583,7 @@
       this.buildCases();
       this.loadCode();
       this.reset();
+      this.saveLast();
     }
 
     buildCases() {
@@ -559,12 +603,14 @@
     onCase() {
       this.caseIndex = Number($("case").value) || 0;
       this.reset();
+      this.saveLast();
     }
 
     markSolved() {
       localStorage.setItem(this.solvedKey(), "1");
       const b = $("levels").children[this.levelIndex];
       if (b) b.classList.add("solved");
+      this.updateProgress();
     }
 
     loadReference() {

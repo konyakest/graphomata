@@ -42,7 +42,7 @@ class El {
 
 const IDs = [
   "levels", "case", "submit", "run", "step", "back", "reset", "load-ref", "speed",
-  "lang-py", "lang-cpp", "file-name",
+  "lang-py", "lang-cpp", "file-name", "progress",
   "lv-title", "lv-brief", "hint", "code", "hl", "gutter", "line-hl", "line-err",
   "msg", "steps", "refs", "peak", "lastop", "verdict", "stage", "empty", "loadinfo",
 ];
@@ -197,6 +197,27 @@ if (!app.editor.value.includes("def solve")) {
   console.log("FAIL language switch back");
 } else {
   console.log("ok   language switch back");
+}
+
+const lastRaw = store.get("ptr.last");
+let lastOk = false;
+try {
+  const last = JSON.parse(lastRaw);
+  lastOk = last.level === 5 && last.lang === "py";
+} catch (e) { /* ignore */ }
+if (!lastOk) {
+  failures++;
+  console.log(`FAIL last position: ${lastRaw}`);
+} else {
+  console.log(`ok   last position saved: ${lastRaw}`);
+}
+
+const prog = elements.get("progress").textContent;
+if (!/Python 12\/12/.test(prog) || !/C\+\+ 1\/12/.test(prog)) {
+  failures++;
+  console.log(`FAIL progress summary: ${prog}`);
+} else {
+  console.log(`ok   progress summary: ${prog}`);
 }
 
 process.exit(failures ? 1 : 0);
