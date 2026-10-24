@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PYTHONPATH="$here/../python${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m graphomata.judge "$@"

@@ -1,0 +1,13 @@
+{
+  "id": "01-hello",
+  "order": 1,
+  "title": "Hello, node",
+  "concept": "NODE",
+  "story": "The world starts empty. Put one node on the table and stand on it.",
+  "graph": { "nodes": 0, "edges": [], "workers": {} },
+  "goal": { "iso": { "nodes": 1, "edges": [] }, "workers": { "a": 0 } },
+  "budget": 3,
+  "seeds": [1],
+  "hint": "w.node(A)",
+  "reference": { "cpp": "examples/cpp/01_hello.cpp", "py": "examples/py/01_hello.py" }
+}

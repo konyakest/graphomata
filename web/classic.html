@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graphomata · Web Demo</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div class="mark"></div>
+    <div>
+      <h1>Graphomata <span>web demo</span></h1>
+      <p>用代码驱动一台图灵机</p>
+    </div>
+  </div>
+  <nav id="levels" class="levels" aria-label="关卡"></nav>
+  <div class="seedbox">
+    <span>seed</span>
+    <b id="seed">1</b>
+    <button id="reseed" class="ghost" title="换一个随机种子">换种子</button>
+  </div>
+</header>
+
+<main>
+  <section class="card editor-card">
+    <div class="card-head">
+      <div class="file"><i></i>solution.py</div>
+      <div class="actions">
+        <button id="run" class="primary">▶ 运行</button>
+        <button id="step">单步 ⏭</button>
+        <button id="reset" class="ghost">↺ 重置</button>
+        <button id="load-ref" class="ghost">参考解</button>
+        <select id="speed" title="运行速度">
+          <option value="390">慢速</option>
+          <option value="180" selected>中速</option>
+          <option value="68">快速</option>
+          <option value="0">瞬时</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="brief">
+      <b id="lv-title">—</b>
+      <span id="lv-brief"></span>
+    </div>
+
+    <div class="editor">
+      <div class="gutter" id="gutter"></div>
+      <div class="code-wrap">
+        <div class="line-hl" id="line-hl"></div>
+        <div class="line-err" id="line-err"></div>
+        <pre class="hl" id="hl" aria-hidden="true"></pre>
+        <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+      </div>
+    </div>
+
+    <div class="msg" id="msg"></div>
+
+    <div class="console">
+      <span class="console-label">输出</span>
+      <pre id="out"></pre>
+    </div>
+  </section>
+
+  <section class="card stage-card">
+    <div class="stage-head">
+      <div class="stat"><span>操作</span><b id="ops">0 / 0</b></div>
+      <div class="stat"><span>峰值寄存器</span><b id="peak">0</b></div>
+      <div class="stat wide"><span>当前</span><b id="lastop">初始化</b></div>
+      <div class="verdict" id="verdict"></div>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="stage"></canvas>
+      <div class="empty" id="empty">点击「运行」或「单步」开始</div>
+    </div>
+
+    <div class="home">
+      <span class="home-label">HOME</span>
+      <div id="home-chips"></div>
+      <div class="legend"><i class="lg-edge"></i>边 <i class="lg-add"></i>新增 <i class="lg-del"></i>删除</div>
+    </div>
+
+    <div class="hint" id="hint"></div>
+  </section>
+</main>
+
+<footer>
+  <span>同一台机器，三种前端：C++ / Python / 浏览器 · 浏览器端解释执行 Python 子集</span>
+  <span id="loadinfo"></span>
+</footer>
+
+<script src="vm.js"></script>
+<script src="py.js"></script>
+<script src="levels.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

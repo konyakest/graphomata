@@ -1,0 +1,23 @@
+{
+  "id": "04-clone",
+  "order": 4,
+  "title": "Clone a chain",
+  "concept": "allocation under GC",
+  "story": "Copy the four-node chain. The original must survive untouched, A stays on its head, and the copy must be a separate chain.",
+  "graph": {
+    "nodes": 4,
+    "edges": [[0, 1], [1, 2], [2, 3]],
+    "workers": { "a": 0 }
+  },
+  "goal": {
+    "iso": {
+      "nodes": 8,
+      "edges": [[0, 1], [1, 2], [2, 3], [4, 5], [5, 6], [6, 7]]
+    },
+    "workers": { "a": 0 }
+  },
+  "budget": 26,
+  "seeds": [1, 2, 3],
+  "hint": "A node that is neither occupied nor attached is collected immediately. Allocate, attach, advance.",
+  "reference": { "cpp": "examples/cpp/04_clone.cpp", "py": "examples/py/04_clone.py" }
+}

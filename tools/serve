@@ -1,0 +1,337 @@
+#!/usr/bin/env python3
+"""Serve the demo and (on WSL) open it in the Windows browser.
+
+    ./tools/serve                 # http://localhost:8000/web/
+    ./tools/serve --port 9000
+    ./tools/serve --no-open       # just serve, print the URL
+    ./tools/serve --browser 'C:\\Program Files\\...\\msedge.exe'
+
+Open detection is empirical: the page is opened with a one-shot token in the
+query string, and the server waits until it actually receives that request.
+A launcher that returns 0 without opening anything (PowerShell's Start-Process
+does that when no default browser is registered) is therefore not mistaken
+for success; the next opener is tried instead.
+"""
+
+from __future__ import annotations
+
+import argparse
+import functools
+import http.server
+import os
+import platform
+import secrets
+import shutil
+import socket
+import subprocess
+import sys
+import threading
+import webbrowser
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
+ROOT = Path(__file__).resolve().parent.parent
+DEVNULL = subprocess.DEVNULL
+
+# token -> Event, set when a browser actually requests the page
+_OPEN_TOKENS: dict[str, threading.Event] = {}
+_OPEN_LOCK = threading.Lock()
+
+WIN_BROWSERS = [
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files\Mozilla Firefox\firefox.exe",
+]
+
+
+# ------------------------------------------------------------------ helpers
+def is_wsl() -> bool:
+    return bool(os.environ.get("WSL_DISTRO_NAME")) or "microsoft" in platform.release().lower()
+
+
+def wsl_ip() -> str | None:
+    try:
+        out = subprocess.run(["hostname", "-I"], capture_output=True, text=True, timeout=3)
+        for token in out.stdout.split():
+            if ":" not in token:
+                return token
+    except Exception:
+        pass
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("10.255.255.255", 1))
+            return s.getsockname()[0]
+    except Exception:
+        return None
+
+
+def unc_path() -> str | None:
+    if not is_wsl():
+        return None
+    distro = os.environ.get("WSL_DISTRO_NAME", "")
+    if not distro:
+        return None
+    return "\\\\wsl.localhost\\" + distro + str(ROOT).replace("/", "\\") + "\\web\\index.html"
+
+
+def win_path_to_wsl(path: str) -> str:
+    if len(path) > 2 and path[1] == ":" and path[2] in "\\/":
+        return "/mnt/" + path[0].lower() + "/" + path[3:].replace("\\", "/")
+    return path
+
+
+def arm_token() -> str:
+    token = secrets.token_hex(4)
+    with _OPEN_LOCK:
+        _OPEN_TOKENS[token] = threading.Event()
+    return token
+
+
+def wait_token(token: str, timeout: float) -> bool:
+    with _OPEN_LOCK:
+        event = _OPEN_TOKENS.get(token)
+    return bool(event and event.wait(timeout))
+
+
+# ------------------------------------------------------------------- server
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, fmt: str, *args) -> None:
+        sys.stderr.write("  · " + (fmt % args) + "\n")
+
+    def end_headers(self) -> None:
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+    def do_GET(self) -> None:
+        query = parse_qs(urlparse(self.path).query)
+        token = query.get("open", [None])[0]
+        if token:
+            with _OPEN_LOCK:
+                event = _OPEN_TOKENS.get(token)
+            if event:
+                event.set()
+        if self.path in ("/", ""):
+            self.send_response(302)
+            self.send_header("Location", "/web/")
+            self.end_headers()
+            return
+        super().do_GET()
+
+
+def pick_port(host: str, start: int) -> int:
+    for port in range(start, start + 20):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind((host, port))
+            except OSError:
+                continue
+            return port
+    raise SystemExit(f"端口 {start}-{start + 19} 都被占用了，试试 --port")
+
+
+def probe_from_windows(url: str) -> bool:
+    """Ask the Windows side whether it can reach the server.
+
+    curl.exe instead of Invoke-WebRequest on purpose: PowerShell honours the
+    system proxy, which routinely reports "timeout" for localhost.
+    """
+    exe = shutil.which("curl.exe")
+    if not exe:
+        return False
+    for _ in range(3):
+        try:
+            proc = subprocess.run(
+                [exe, "-s", "-o", "NUL", "-w", "%{http_code}", "--max-time", "3", url],
+                cwd="/mnt/c" if Path("/mnt/c").is_dir() else None,
+                capture_output=True, text=True, timeout=10,
+            )
+            if proc.stdout.strip().endswith("200"):
+                return True
+        except Exception:
+            pass
+        threading.Event().wait(0.4)
+    return False
+
+
+def pick_windows_url(host_url: str, ip_url: str | None) -> tuple[str, bool]:
+    if probe_from_windows(host_url):
+        return host_url, True
+    if ip_url and probe_from_windows(ip_url):
+        return ip_url, True
+    return host_url, False
+
+
+# -------------------------------------------------------------- open logic
+def with_token(url: str, token: str) -> str:
+    return url + ("&" if "?" in url else "?") + "open=" + token
+
+
+def try_opener(label: str, argv: list[str], check: bool, base_url: str,
+               workdir: str | None) -> bool:
+    if not shutil.which(argv[0]):
+        return False
+    token = arm_token()
+    target = with_token(base_url, token)
+    cmd = [a.replace("{url}", target) for a in argv]
+    try:
+        proc = subprocess.run(cmd, cwd=workdir, stdout=DEVNULL, stderr=DEVNULL, timeout=12)
+        if check and proc.returncode != 0:
+            return False
+    except Exception:
+        return False
+    if wait_token(token, 1.2):
+        print(f"   用 {label} 打开：{base_url}", flush=True)
+        return True
+    return False
+
+
+def windows_openers() -> list[tuple[str, list[str], bool]]:
+    # Keep this list short: every failed opener costs a wait and may pop a
+    # dialog on the Windows desktop.  cmd's `start` is the standard ShellExecute
+    # path; if it cannot open anything we fall back to explicit browser paths.
+    return [
+        ("wslview", ["wslview", "{url}"], True),
+        ("cmd start", ["cmd.exe", "/c", 'start "" "{url}"'], True),
+    ]
+
+
+def default_browser_progid() -> str:
+    try:
+        proc = subprocess.run(
+            ["reg.exe", "query",
+             r"HKCU\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\http\UserChoice",
+             "/v", "ProgId"],
+            cwd="/mnt/c" if Path("/mnt/c").is_dir() else None,
+            capture_output=True, text=True, timeout=8,
+        )
+        for line in proc.stdout.splitlines():
+            if "ProgId" in line:
+                return line.split()[-1].lower()
+    except Exception:
+        pass
+    return ""
+
+
+def browser_family(path: str) -> str:
+    name = os.path.basename(path).lower()
+    if "msedge" in name:
+        return "edge"
+    if "chrome" in name:
+        return "chrome"
+    if "firefox" in name:
+        return "firefox"
+    return name
+
+
+def ordered_browsers() -> list[str]:
+    progid = default_browser_progid()
+    pref = next((f for f in ("edge", "chrome", "firefox") if f in progid), "")
+    return sorted(WIN_BROWSERS, key=lambda p: 0 if browser_family(p) == pref else 1)
+
+
+def open_windows_browser(base_url: str, forced: str | None) -> bool:
+    workdir = "/mnt/c" if Path("/mnt/c").is_dir() else None
+
+    for label, argv, check in windows_openers():
+        if try_opener(label, argv, check, base_url, workdir):
+            return True
+
+    candidates = [forced] if forced else ordered_browsers()
+    for path in candidates:
+        exe = win_path_to_wsl(path)
+        if not os.path.exists(exe):
+            continue
+        token = arm_token()
+        target = with_token(base_url, token)
+        try:
+            proc = subprocess.Popen(
+                [exe, target], cwd=workdir, stdout=DEVNULL, stderr=DEVNULL,
+                start_new_session=True,
+            )
+        except Exception:
+            continue
+        if wait_token(token, 10):
+            print(f"   用 {os.path.basename(exe)} 打开：{base_url}", flush=True)
+            return True
+        try:
+            proc.kill()
+        except Exception:
+            pass
+    return False
+
+
+def open_browser(base_url: str, forced: str | None = None) -> bool:
+    if is_wsl():
+        if open_windows_browser(base_url, forced):
+            return True
+        print("   没能自动打开浏览器，请手动复制上面的地址。", flush=True)
+        return False
+    try:
+        return webbrowser.open(base_url)
+    except Exception:
+        return False
+
+
+# --------------------------------------------------------------------- main
+def main() -> int:
+    ap = argparse.ArgumentParser(description="serve graphomata web demo")
+    ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--host", default="0.0.0.0", help="bind address (0.0.0.0 lets Windows in)")
+    ap.add_argument("--no-open", action="store_true", help="do not launch a browser")
+    ap.add_argument("--no-probe", action="store_true", help="skip the Windows reachability check")
+    ap.add_argument("--browser", help="force a Windows browser executable")
+    args = ap.parse_args()
+
+    port = pick_port(args.host, args.port)
+    local_url = f"http://127.0.0.1:{port}/web/"
+    host_url = f"http://localhost:{port}/web/"
+
+    handler = functools.partial(Handler, directory=str(ROOT))
+    httpd = http.server.ThreadingHTTPServer((args.host, port), handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+
+    ip = wsl_ip() if is_wsl() else None
+    ip_url = f"http://{ip}:{port}/web/" if ip else None
+
+    target, reachable = host_url, False
+    if is_wsl() and not args.no_probe:
+        target, reachable = pick_windows_url(host_url, ip_url)
+
+    print()
+    print("  graphomata · web demo", flush=True)
+    print("  " + "─" * 58, flush=True)
+    print(f"  WSL 内:   {local_url}", flush=True)
+    if is_wsl():
+        mark = "  ✓ Windows 已连通" if reachable else ""
+        print(f"  Windows:  {target}{mark}", flush=True)
+        if ip_url and target != ip_url:
+            print(f"  备用:     {ip_url}", flush=True)
+        unc = unc_path()
+        if unc:
+            print(f"  直接打开: {unc}", flush=True)
+    else:
+        print(f"  浏览器:   {host_url}", flush=True)
+    print("  " + "─" * 58, flush=True)
+
+    if not args.no_open:
+        threading.Thread(
+            target=open_browser, args=(target, args.browser), daemon=True
+        ).start()
+
+    print("  Ctrl+C 退出\n", flush=True)
+    try:
+        while True:
+            threading.Event().wait(0.5)
+    except KeyboardInterrupt:
+        print("\n  停止。")
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

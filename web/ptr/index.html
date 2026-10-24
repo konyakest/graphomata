@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graphomata · Pointer</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+  .card.editor-card .msg { display: none; }
+  .card.editor-card .msg.on { display: block; }
+  .pointer-note { color: var(--faint); font-size: 11.5px; }
+  #stage { touch-action: none; }
+  button:disabled { opacity: .35; cursor: default; }
+  .langs { display: flex; gap: 2px; background: #0b111b; border: 1px solid var(--line); border-radius: 7px; padding: 2px; }
+  .langs button { border: 0; background: transparent; color: var(--dim); font-size: 11.5px; padding: 3px 8px; border-radius: 5px; cursor: pointer; }
+  .langs button.on { background: #1c1a0f; color: var(--accent); }
+  .verdict.case { color: #ffd43b; }
+  .verdict.case.show { border-color: #6d5a13; background: #1c1a0f; }
+  .levels button.solved::after { content: "✓"; color: #51cf66; margin-left: 5px; }
+  .brief .diff {
+    font-style: normal; font-size: 11px; color: var(--accent);
+    border: 1px solid #6d5a13; background: #1c1a0f;
+    border-radius: 5px; padding: 1px 6px; margin-right: 8px;
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div class="mark"></div>
+    <div>
+      <h1>Graphomata <span>pointer mode</span></h1>
+      <p>变量是节点引用 · 峰值决定难度</p>
+    </div>
+  </div>
+  <nav id="levels" class="levels" aria-label="关卡"></nav>
+  <div class="seedbox">
+    <span>测试点</span>
+    <select id="case" title="选择测试点"></select>
+    <button id="submit" class="primary" title="跑全部测试点，全部通过才算过关">提交</button>
+  </div>
+</header>
+
+<main>
+  <section class="card editor-card">
+    <div class="card-head">
+      <div class="file"><i></i><span id="file-name">solution.py</span></div>
+      <div class="langs">
+        <button id="lang-py" class="on">Python</button>
+        <button id="lang-cpp">C++</button>
+      </div>
+      <div class="actions">
+        <button id="run" class="primary">▶ 运行</button>
+        <button id="back" title="后退一步">↶ 后退</button>
+        <button id="step">单步 ⏭</button>
+        <button id="reset" class="ghost">↺ 重置</button>
+        <button id="load-ref" class="ghost">参考解</button>
+        <select id="speed" title="运行速度">
+          <option value="390">慢速</option>
+          <option value="180" selected>中速</option>
+          <option value="68">快速</option>
+          <option value="0">瞬时</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="brief">
+      <b id="lv-title">—</b>
+      <span id="lv-brief"></span>
+    </div>
+
+    <div class="editor">
+      <div class="gutter" id="gutter"></div>
+      <div class="code-wrap">
+        <div class="line-hl" id="line-hl"></div>
+        <div class="line-err" id="line-err"></div>
+        <pre class="hl" id="hl" aria-hidden="true"></pre>
+        <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+      </div>
+    </div>
+
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <section class="card stage-card">
+    <div class="stage-head">
+      <div class="stat"><span>步骤</span><b id="steps">0</b></div>
+      <div class="stat"><span>引用</span><b id="refs">1</b></div>
+      <div class="stat"><span>峰值 / 上限</span><b id="peak">1 / 1</b></div>
+      <div class="stat wide"><span>上一步</span><b id="lastop">初始化</b></div>
+      <div class="verdict" id="verdict"></div>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="stage"></canvas>
+      <div class="empty" id="empty">点击「运行」或「单步」开始</div>
+    </div>
+
+    <div class="hint" id="hint"></div>
+  </section>
+</main>
+
+<footer>
+  <span>变量 = 节点引用 · 节点可拖动 · GC 沿出边做可达性</span>
+  <span><a href="../classic.html" style="color:var(--dim)">经典 worker 模式</a> · <span id="loadinfo"></span></span>
+</footer>
+
+<script src="world.js"></script>
+<script src="parser.js"></script>
+<script src="interp.js"></script>
+<script src="cpp.js"></script>
+<script src="levels.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

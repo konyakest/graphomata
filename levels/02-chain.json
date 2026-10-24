@@ -1,0 +1,16 @@
+{
+  "id": "02-chain",
+  "order": 2,
+  "title": "Grow a chain",
+  "concept": "NODE + LINK + JOIN",
+  "story": "One node is a lonely thing. Turn it into a directed path of four, with A on the tail.",
+  "graph": { "nodes": 1, "edges": [], "workers": { "a": 0 } },
+  "goal": {
+    "iso": { "nodes": 4, "edges": [[0, 1], [1, 2], [2, 3]] },
+    "workers": { "a": 3 }
+  },
+  "budget": 12,
+  "seeds": [1, 2, 3],
+  "hint": "NODE moves the cursor off its node — link it down before you leave.",
+  "reference": { "cpp": "examples/cpp/02_chain.cpp", "py": "examples/py/02_chain.py" }
+}

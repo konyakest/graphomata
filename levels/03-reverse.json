@@ -1,0 +1,20 @@
+{
+  "id": "03-reverse",
+  "order": 3,
+  "title": "Reverse the path",
+  "concept": "three-cursor reversal",
+  "story": "A five-node path. The tag node (4) hangs off the head so that doing nothing is not an answer. Reverse it, and leave A on the new head.",
+  "graph": {
+    "nodes": 5,
+    "edges": [[0, 1], [1, 2], [2, 3], [4, 0]],
+    "workers": { "a": 0 }
+  },
+  "goal": {
+    "iso": { "nodes": 5, "edges": [[0, 1], [1, 2], [2, 3], [4, 3]] },
+    "workers": { "a": 0 }
+  },
+  "budget": 26,
+  "seeds": [1, 2, 3, 4, 5],
+  "hint": "peek(nxt, A) is JOIN+WALK: it costs a register and two ops, but it is the only way to look ahead.",
+  "reference": { "cpp": "examples/cpp/03_reverse.cpp", "py": "examples/py/03_reverse.py" }
+}
