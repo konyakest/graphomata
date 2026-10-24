@@ -7,7 +7,7 @@ Graphomata 的机器，配上 C++ / Python 的编程接口。
 
 **在线试玩：<https://konyakest.github.io/graphomata/>**
 
-**[设计方案（中文）→ DESIGN.md](DESIGN.md)** · **[Pointer 模式规格 → docs/pointer-mode.md](docs/pointer-mode.md)** · **[C++ 模式方案 → docs/cpp-mode.md](docs/cpp-mode.md)** · **[经典 API v2 → API.md](API.md)**
+**[在线试玩](https://konyakest.github.io/graphomata/)** · **[关卡目录（20 个新关卡）→ docs/level-catalog.md](docs/level-catalog.md)** · **[Pointer 模式规格 → docs/pointer-mode.md](docs/pointer-mode.md)** · **[C++ 模式方案 → docs/cpp-mode.md](docs/cpp-mode.md)**
 
 ![replay](docs/reverse.gif)
 
@@ -68,9 +68,10 @@ Graphomata 的机器，配上 C++ / Python 的编程接口。
 | 2 | 10 | Ladder | 挑战 | 并行内存 | 3（4/6/10 节点） | 6 | 26 步 |
 | 2 | 11 | Copy a ring | 困难 | 环 + 身份 | 4（4/6/10/20 节点） | 6 | 16 步 |
 | 2 | 12 | Copy a rho | 挑战 | Floyd 判环 | 5（5/5/8/13/20 节点） | 8 | 44 步 |
+| 2 | 13 | Copy a tree | 挑战 | worklist + unlink | 3（7/15/31 节点） | 12 | 103 步 |
 
 这条线是「图就是内存」：链 → 环 → 复制 → 双向指针 → 汇聚 → 树/梯子。
-语言本身是图灵完备的（可增长的图 + 循环 + 节点身份比较），这 12 关是它的入口。
+语言本身是图灵完备的（可增长的图 + 循环 + 节点身份比较），这 13 关是它的入口。
 
 网页端只剩 pointer mode。桌面端的 worker API（C++ / Python）仍在 `tools/gmj`；
 方案与规则细节：[docs/pointer-mode.md](docs/pointer-mode.md)。

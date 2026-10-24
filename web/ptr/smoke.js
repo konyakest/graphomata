@@ -203,6 +203,6 @@ try { last = JSON.parse(lastRaw); } catch (e) { /* ignore */ }
 check("last position saved", last && last.chapter === 1 && last.level === 0 && last.lang === "py", lastRaw);
 
 const prog = elements.get("progress").textContent;
-check("progress summary", /Python 12\/12/.test(prog) && /C\+\+ 1\/12/.test(prog), prog);
+check("progress summary", /Python 13\/13/.test(prog) && /C\+\+ 1\/13/.test(prog), prog);
 
 process.exit(failures ? 1 : 0);

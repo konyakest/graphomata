@@ -126,6 +126,30 @@
     };
   }
 
+  function treeGraph(d) {
+    const nodes = 2 ** (d + 1) - 1;
+    const edges = [];
+    for (let i = 0; i < nodes; i++) {
+      const l = 2 * i + 1, r = 2 * i + 2;
+      if (l < nodes) edges.push([i, l]);
+      if (r < nodes) edges.push([i, r]);
+    }
+    return { nodes, edges };
+  }
+  function treeCase(d, label) {
+    const g = treeGraph(d);
+    return {
+      label,
+      detail: `${g.nodes} 节点满二叉树`,
+      start: 0,
+      graph: g,
+      goal: { iso: g, return_new: true },
+      max_refs: 12,
+      max_steps: 40 * g.nodes + 100,
+      seed: 1,
+    };
+  }
+
   const LEVELS = [
     {
       id: "01-hello",
@@ -619,6 +643,60 @@
         "",
       ].join("\n"),
     },
+    {
+      id: "13-copy-tree",
+      title: "Copy a tree",
+      difficulty: "挑战",
+      concept: "worklist + unlink",
+      brief: "复制这棵二叉树：把子节点从原节点上摘下来放进 worklist，再逐个弹出、复制、入队。",
+      hint: "Q 用 next + unlink 当队列；每个 item 做成 item → copy → original 的临时链。",
+      start: 0,
+      graph: treeGraph(2),
+      goal: { iso: treeGraph(2), return_new: true },
+      max_refs: 12,
+      max_steps: 380,
+      seeds: [1],
+      cases: [treeCase(3, "测试点 2"), treeCase(4, "测试点 3")],
+      starter: [
+        "def solve(s):",
+        "    Q = Node()",
+        "    croot = Node()",
+        "    croot.link(s)",
+        "    # 1) 把 croot 放进 Q 的 item",
+        "    # 2) 弹出 item，枚举 original 的子节点",
+        "    # 3) 每个子节点建 copy，连到当前 copy，再入队",
+        "    return croot",
+        "",
+      ].join("\n"),
+      reference: [
+        "def solve(s):",
+        "    Q = Node()",
+        "    croot = Node()",
+        "    croot.link(s)",
+        "    i0 = Node()",
+        "    i0.link(croot)",
+        "    Q.link(i0)",
+        "    while s is not None:",
+        "        it = Q.next()",
+        "        if it is None:",
+        "            break",
+        "        Q.unlink(it)",
+        "        cv = it.next()",
+        "        v = cv.next()",
+        "        cv.unlink(v)",
+        "        while v.next() is not None:",
+        "            vv = v.next()",
+        "            v.unlink(vv)",
+        "            cn = Node()",
+        "            cv.link(cn)",
+        "            ni = Node()",
+        "            ni.link(cn)",
+        "            cn.link(vv)",
+        "            Q.link(ni)",
+        "    return croot",
+        "",
+      ].join("\n"),
+    },
   ];
 
   const CHAPTERS = [
@@ -633,7 +711,7 @@
       id: "main",
       title: "第二章 · 自己来",
       subtitle: "复制、双向指针、树、梯子、环、rho。没有参考解，过了第一章才能进。",
-      levelIds: ["06-copy", "07-double", "09-tree", "10-ladder", "11-copy-ring", "12-rho-copy"],
+      levelIds: ["06-copy", "07-double", "09-tree", "10-ladder", "11-copy-ring", "12-rho-copy", "13-copy-tree"],
       reference: false,
     },
   ];
@@ -959,6 +1037,50 @@
         "    }",
         "    tail->link(ring);",
         "    return out;",
+        "}",
+        "",
+      ].join("\n"),
+    },
+    "13-copy-tree": {
+      starter: [
+        "Node* solve(Node* s) {",
+        "    Node* Q = new Node();",
+        "    Node* croot = new Node();",
+        "    croot->link(s);",
+        "    // 把 (copy, original) 对放进 Q",
+        "    return croot;",
+        "}",
+        "",
+      ].join("\n"),
+      reference: [
+        "Node* solve(Node* s) {",
+        "    Node* Q = new Node();",
+        "    Node* croot = new Node();",
+        "    croot->link(s);",
+        "    Node* i0 = new Node();",
+        "    i0->link(croot);",
+        "    Q->link(i0);",
+        "    while (s != nullptr) {",
+        "        Node* it = Q->next();",
+        "        if (it == nullptr) {",
+        "            break;",
+        "        }",
+        "        Q->unlink(it);",
+        "        Node* cv = it->next();",
+        "        Node* v = cv->next();",
+        "        cv->unlink(v);",
+        "        while (v->next() != nullptr) {",
+        "            Node* vv = v->next();",
+        "            v->unlink(vv);",
+        "            Node* cn = new Node();",
+        "            cv->link(cn);",
+        "            Node* ni = new Node();",
+        "            ni->link(cn);",
+        "            cn->link(vv);",
+        "            Q->link(ni);",
+        "        }",
+        "    }",
+        "    return croot;",
         "}",
         "",
       ].join("\n"),
