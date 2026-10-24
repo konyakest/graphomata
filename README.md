@@ -5,6 +5,8 @@ Graphomata 的机器，配上 C++ / Python 的编程接口。
 保留原作的硬约束——7 个 worker、5 个改图原语、随机 `WALK`、GC——但把「拖拽建程序」
 换成「写代码」。图形界面不再是输入方式，而是回放与调试器。
 
+**在线试玩：<https://konyakest.github.io/graphomata/>**
+
 **[设计方案（中文）→ DESIGN.md](DESIGN.md)** · **[Pointer 模式规格 → docs/pointer-mode.md](docs/pointer-mode.md)** · **[C++ 模式方案 → docs/cpp-mode.md](docs/cpp-mode.md)** · **[经典 API v2 → API.md](API.md)**
 
 ![replay](docs/reverse.gif)
