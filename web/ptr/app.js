@@ -685,6 +685,12 @@
       }
       this.updateProgress();
       this.showChapters();
+      try {
+        if (typeof location !== "undefined") {
+          const ch = Number(new URLSearchParams(location.search).get("chapter"));
+          if (Number.isInteger(ch) && ch >= 0 && ch < CHAPTERS.length && this.chapterUnlocked(ch)) this.openChapter(ch);
+        }
+      } catch (e) { /* ignore */ }
       this.loop();
     }
 

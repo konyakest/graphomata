@@ -119,6 +119,7 @@ for (let i = 0; i < ch1.length; i++) {
   check(`chapter 1 level ${i + 1} passes`, app.status === "pass", elements.get("msg").textContent);
   if (i + 1 < ch1.length) check(`level ${i + 2} unlocked`, app.levelUnlocked(i + 1));
 }
+check("example canvases drawn", elements.get("ex-start").width > 0 && elements.get("ex-goal").width > 0);
 check("reference visible in chapter 1", elements.get("load-ref").hidden !== true);
 
 app.showChapters();
