@@ -3,7 +3,7 @@
 > 目标：去掉 worker。变量就是节点引用，一切操作都在节点上。
 > 计分维度从「ops」换成「**峰值同时存在的引用数**」。
 > 范围：只做网页端的 Python 子集；桌面 C++/Python 维持 worker 模式，暂不跟进。
-> 状态：**已实现**，入口 `web/ptr/`（`web/index.html` 会跳转过去）；经典 worker 模式在 `web/classic.html`。
+> 状态：**已实现**，入口 `web/ptr/`（`web/index.html` 会跳转过去）；worker 模式的网页入口已删除。
 
 ---
 
@@ -379,4 +379,4 @@ web/ptr/
 - 关卡是否要求 `return` 非空？我默认要求。
 - `a == b` 要不要支持？我默认只支持 `is`，避免和 None 比较混淆。
 - 是否需要 `print` 调试？我默认不要，输出用界面上的 state。
-- 旧 worker 模式是保留成另一个入口，还是完全替换？我默认先并存，稳定后切换默认页。
+- 旧 worker 模式：网页入口已删除；桌面 C++/Python 的 worker API 仍保留。

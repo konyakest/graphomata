@@ -70,10 +70,10 @@ Graphomata 的机器，配上 C++ / Python 的编程接口。
 | 2 | 12 | Copy a rho | 挑战 | Floyd 判环 | 5（5/5/8/13/20 节点） | 8 | 44 步 |
 
 这条线是「图就是内存」：链 → 环 → 复制 → 双向指针 → 汇聚 → 树/梯子。
-语言本身是图灵完备的（可增长的图 + 循环 + 节点身份比较），这 10 关是它的入口。
+语言本身是图灵完备的（可增长的图 + 循环 + 节点身份比较），这 12 关是它的入口。
 
-经典 worker 模式还在 **[web/classic.html](web/classic.html)**（6 关、ops 预算、API v2）。
-C++ 仍走桌面端的 `tools/gmj`。方案与规则细节：[docs/pointer-mode.md](docs/pointer-mode.md)。
+网页端只剩 pointer mode。桌面端的 worker API（C++ / Python）仍在 `tools/gmj`；
+方案与规则细节：[docs/pointer-mode.md](docs/pointer-mode.md)。
 
 > 打不开时：Windows 浏览器如果配了系统代理，把 `localhost` 加进代理例外；
 > 或者直接用 `./tools/serve` 打印出来的 `http://<wsl-ip>:8000/web/`。
@@ -86,8 +86,7 @@ C++ 仍走桌面端的 `tools/gmj`。方案与规则细节：[docs/pointer-mode.
 2. push 到 `main`（或手动跑 `pages` workflow）；
 3. 站点地址是 `https://<user>.github.io/<repo>/`，`web/index.html` 会自动跳到 `ptr/`。
 
-工作流在 `.github/workflows/pages.yml`，上传的是整个 `web/` 目录；
-经典 worker 模式在 `https://<user>.github.io/<repo>/classic.html`。
+工作流在 `.github/workflows/pages.yml`，上传的是整个 `web/` 目录。
 
 ### Gitee Pages
 
@@ -184,7 +183,6 @@ include/graphomata/gm.hpp   VM + 记账 + trace（C++ 单头文件，无依赖�
 python/graphomata/          Python 镜像 + 判定器 + 渲染器
 tools/harness.cpp           C++ 运行入口（spec.txt → trace.json）
 web/ptr/                    pointer 模式（变量 = 节点引用，峰值计分）
-web/classic.html            经典 worker 模式页面
 tools/gmj                   CLI 包装
 levels/*.json               关卡定义
 examples/{cpp,py}/          参考解

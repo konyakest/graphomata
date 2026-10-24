@@ -2,8 +2,6 @@
 
 test:
 	python3 -m unittest discover -s tests
-	node web/test.js
-	node web/smoke.js
 	node web/ptr/test.js
 	node web/ptr/smoke.js
 
