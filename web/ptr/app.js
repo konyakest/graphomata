@@ -432,6 +432,209 @@
     }
   }
 
+  // ------------------------------------------------------------ mini graphs
+  function layoutMini(graph, W, H) {
+    const n = graph.nodes || 0;
+    const pos = new Map();
+    if (!n) return pos;
+    const out = new Map(), inn = new Map();
+    for (let i = 0; i < n; i++) { out.set(i, []); inn.set(i, []); }
+    for (const [u, v] of graph.edges || []) {
+      if (!out.has(u) || !out.has(v)) continue;
+      out.get(u).push(v);
+      inn.get(v).push(u);
+    }
+    const pad = 12;
+    const edges = graph.edges || [];
+    const sources = [];
+    for (let i = 0; i < n; i++) if (!inn.get(i).length) sources.push(i);
+
+    const chain = edges.length === n - 1 && sources.length === 1 &&
+      [...out.keys()].every((i) => out.get(i).length <= 1 && inn.get(i).length <= 1);
+    if (chain) {
+      let cur = sources[0], k = 0;
+      while (cur !== undefined && pos.size < n) {
+        const x = n === 1 ? W / 2 : pad + (k * (W - 2 * pad)) / (n - 1);
+        pos.set(cur, { x, y: H / 2 });
+        k++;
+        const nxt = out.get(cur);
+        cur = nxt.length ? nxt[0] : undefined;
+      }
+      if (pos.size === n) return pos;
+      pos.clear();
+    }
+
+    const ring = edges.length === n &&
+      [...out.keys()].every((i) => out.get(i).length === 1 && inn.get(i).length === 1);
+    if (ring) {
+      const cx = W / 2, cy = H / 2, r = Math.min(W, H) / 2 - 14;
+      let cur = 0;
+      for (let i = 0; i < n; i++) {
+        const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+        pos.set(cur, { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+        cur = out.get(cur)[0];
+      }
+      return pos;
+    }
+
+    const rho = edges.length === n &&
+      [...out.keys()].every((i) => out.get(i).length === 1) &&
+      sources.length === 1 &&
+      [...inn.keys()].filter((i) => inn.get(i).length === 2).length === 1;
+    if (rho) {
+      const entry = [...inn.keys()].find((i) => inn.get(i).length === 2);
+      const tail = [];
+      let cur = sources[0];
+      while (cur !== entry) { tail.push(cur); cur = out.get(cur)[0]; }
+      const ring = [];
+      cur = entry;
+      do { ring.push(cur); cur = out.get(cur)[0]; } while (cur !== entry);
+      const ringCx = W * 0.7, ringCy = H / 2;
+      const ringR = Math.max(8, Math.min(H / 2 - 12, W * 0.2));
+      const ringN = ring.length;
+      ring.forEach((id, i) => {
+        const a = Math.PI + (i * 2 * Math.PI) / ringN;
+        pos.set(id, { x: ringCx + Math.cos(a) * ringR, y: ringCy + Math.sin(a) * ringR });
+      });
+      const tailEnd = ringCx - ringR - 6;
+      tail.forEach((id, i) => {
+        const x = tail.length === 1 ? pad : pad + (i * (tailEnd - pad)) / (tail.length - 1);
+        pos.set(id, { x, y: ringCy });
+      });
+      return pos;
+    }
+
+    const tree = edges.length === n - 1 && sources.length === 1 &&
+      [...inn.keys()].every((i) => inn.get(i).length <= 1);
+    if (tree) {
+      const root = sources[0];
+      const leaves = (u) => (out.get(u).length ? out.get(u).reduce((s, v) => s + leaves(v), 0) : 1);
+      const depth = (u) => (out.get(u).length ? 1 + Math.max(...out.get(u).map(depth)) : 0);
+      const nLeaves = Math.max(1, leaves(root));
+      const nDepth = depth(root);
+      const gapX = (W - 2 * pad) / nLeaves;
+      const gapY = nDepth ? (H - 2 * pad) / nDepth : 0;
+      let leaf = 0;
+      const place = (u, d) => {
+        const ch = out.get(u);
+        let x;
+        if (!ch.length) {
+          x = pad + leaf * gapX + gapX / 2;
+          leaf++;
+        } else {
+          const xs = ch.map((v) => place(v, d + 1));
+          x = xs.reduce((a, b) => a + b, 0) / xs.length;
+        }
+        pos.set(u, { x, y: nDepth ? pad + d * gapY : H / 2 });
+        return x;
+      };
+      place(root, 0);
+      if (pos.size === n) return pos;
+      pos.clear();
+    }
+
+    return forceMini(n, edges, W, H);
+  }
+
+  function forceMini(n, edges, W, H) {
+    const pad = 12;
+    const ps = [];
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + (i * 2 * Math.PI) / Math.max(1, n);
+      ps.push({ x: W / 2 + Math.cos(a) * (W * 0.26), y: H / 2 + Math.sin(a) * (H * 0.26), vx: 0, vy: 0 });
+    }
+    for (let it = 0; it < 180; it++) {
+      const fx = new Array(n).fill(0), fy = new Array(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          let dx = ps[i].x - ps[j].x, dy = ps[i].y - ps[j].y;
+          let d2 = dx * dx + dy * dy;
+          if (d2 < 1) { dx = 0.5; dy = 0.5; d2 = 1; }
+          const d = Math.sqrt(d2);
+          const f = Math.min(30, 900 / d2);
+          fx[i] += (dx / d) * f; fy[i] += (dy / d) * f;
+          fx[j] -= (dx / d) * f; fy[j] -= (dy / d) * f;
+        }
+      }
+      for (const [u, v] of edges) {
+        const dx = ps[v].x - ps[u].x, dy = ps[v].y - ps[u].y;
+        const d = Math.hypot(dx, dy) || 1;
+        const f = 0.06 * (d - 34);
+        fx[u] += (dx / d) * f; fy[u] += (dy / d) * f;
+        fx[v] -= (dx / d) * f; fy[v] -= (dy / d) * f;
+      }
+      for (let i = 0; i < n; i++) {
+        fx[i] += (W / 2 - ps[i].x) * 0.02;
+        fy[i] += (H / 2 - ps[i].y) * 0.02;
+        ps[i].vx = (ps[i].vx + fx[i]) * 0.75;
+        ps[i].vy = (ps[i].vy + fy[i]) * 0.75;
+        ps[i].x += Math.max(-4, Math.min(4, ps[i].vx));
+        ps[i].y += Math.max(-4, Math.min(4, ps[i].vy));
+      }
+    }
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of ps) {
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    }
+    const spanX = Math.max(1, maxX - minX), spanY = Math.max(1, maxY - minY);
+    const s = Math.min((W - 2 * pad) / spanX, (H - 2 * pad) / spanY, 1.6);
+    const pos = new Map();
+    for (let i = 0; i < n; i++) {
+      pos.set(i, {
+        x: pad + (ps[i].x - minX) * s + ((W - 2 * pad) - spanX * s) / 2,
+        y: pad + (ps[i].y - minY) * s + ((H - 2 * pad) - spanY * s) / 2,
+      });
+    }
+    return pos;
+  }
+
+  function drawMini(canvas, graph) {
+    if (!canvas || !graph) return;
+    const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+    const W = 170, H = 84;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    const ctx = canvas.getContext ? canvas.getContext("2d") : null;
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const pos = layoutMini(graph, W, H);
+    const r = 4;
+    ctx.lineWidth = 1;
+    for (const [u, v] of graph.edges || []) {
+      const a = pos.get(u), b = pos.get(v);
+      if (!a || !b) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const ux = dx / d, uy = dy / d;
+      const sx = a.x + ux * (r + 1), sy = a.y + uy * (r + 1);
+      const ex = b.x - ux * (r + 3), ey = b.y - uy * (r + 3);
+      ctx.strokeStyle = "rgba(120, 150, 200, 0.6)";
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(120, 150, 200, 0.75)";
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex - ux * 5 - uy * 2.5, ey - uy * 5 + ux * 2.5);
+      ctx.lineTo(ex - ux * 5 + uy * 2.5, ey - uy * 5 - ux * 2.5);
+      ctx.closePath();
+      ctx.fill();
+    }
+    for (const [id, p] of pos) {
+      const hue = (id * 137.508) % 360;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsl(${hue.toFixed(0)}, 30%, 38%)`;
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = `hsl(${hue.toFixed(0)}, 38%, 50%)`;
+      ctx.stroke();
+    }
+  }
+
   // --------------------------------------------------------------------- app
   class App {
     constructor() {
@@ -680,6 +883,16 @@
         ref.hidden = !this.chapter.reference;
         ref.style.display = this.chapter.reference ? "" : "none";
       }
+      this.drawExample();
+    }
+
+    drawExample() {
+      const c = this.cases[0];
+      if (!c) return;
+      drawMini($("ex-start"), c.graph);
+      drawMini($("ex-goal"), c.goal && c.goal.iso ? c.goal.iso : { nodes: 0, edges: [] });
+      const label = $("ex-goal-label");
+      if (label) label.textContent = c.goal && c.goal.return_new ? "目标（新图）" : "目标";
     }
 
     selectLevel(i) {

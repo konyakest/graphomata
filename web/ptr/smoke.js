@@ -43,7 +43,7 @@ class El {
 const IDs = [
   "levels", "case", "submit", "run", "step", "back", "reset", "load-ref", "speed",
   "chapter-view", "game-view", "chapter-cards", "back-chapters",
-  "lang-py", "lang-cpp", "file-name", "progress",
+  "lang-py", "lang-cpp", "file-name", "progress", "ex-start", "ex-goal", "ex-goal-label",
   "lv-title", "lv-brief", "hint", "code", "hl", "gutter", "line-hl", "line-err",
   "msg", "steps", "refs", "peak", "lastop", "verdict", "stage", "empty", "loadinfo",
 ];

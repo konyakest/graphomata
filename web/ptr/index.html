@@ -39,6 +39,12 @@
   .levels button.locked { opacity: .35; cursor: not-allowed; }
   @media (max-width: 760px) { .chapter-cards { grid-template-columns: 1fr; } }
 
+  .example-row { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-top: 1px solid var(--line); }
+  .example { display: flex; flex-direction: column; gap: 3px; }
+  .example span { color: var(--faint); font-size: 10.5px; letter-spacing: .03em; }
+  .example canvas { width: 170px; height: 84px; border: 1px solid var(--line); border-radius: 7px; background: #0a1018; }
+  .example-arrow { color: var(--faint); font-size: 16px; margin-top: 12px; }
+  @media (max-width: 900px) { .example canvas { width: 140px; height: 72px; } }
   .brief .diff {
     font-style: normal; font-size: 11px; color: var(--accent);
     border: 1px solid #6d5a13; background: #1c1a0f;
@@ -108,6 +114,12 @@
     <div class="brief">
       <b id="lv-title">—</b>
       <span id="lv-brief"></span>
+    </div>
+
+    <div class="example-row">
+      <div class="example"><span>起始 · 示例</span><canvas id="ex-start"></canvas></div>
+      <div class="example-arrow">→</div>
+      <div class="example"><span id="ex-goal-label">目标</span><canvas id="ex-goal"></canvas></div>
     </div>
 
     <div class="editor">
