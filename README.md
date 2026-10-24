@@ -121,8 +121,8 @@ git subtree push --prefix web origin pages
 
 # VM 单元测试
 python3 -m unittest discover -s tests
-node web/test.js              # 浏览器引擎的参考解回归测试
-node web/smoke.js             # UI 状态机冒烟测试
+node web/ptr/test.js          # pointer 引擎 + 关卡回归测试
+node web/ptr/smoke.js         # pointer UI 冒烟测试
 ```
 
 环境：`g++ >= 11`（C++20 `source_location`）、`python3 >= 3.10`、`Pillow`（仅渲染）。
