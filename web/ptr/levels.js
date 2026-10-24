@@ -621,6 +621,27 @@
     },
   ];
 
+  const CHAPTERS = [
+    {
+      id: "basics",
+      title: "第一章 · 规则",
+      subtitle: "节点、边、分叉、环、unlink。题目小，带参考解，先把规则摸熟。",
+      levelIds: ["01-hello", "02-chain", "03-fork", "04-ring", "05-open", "08-diamond"],
+      reference: true,
+    },
+    {
+      id: "main",
+      title: "第二章 · 自己来",
+      subtitle: "复制、双向指针、树、梯子、环、rho。没有参考解，过了第一章才能进。",
+      levelIds: ["06-copy", "07-double", "09-tree", "10-ladder", "11-copy-ring", "12-rho-copy"],
+      reference: false,
+    },
+  ];
+
+  function chapterLevels(chapter) {
+    return chapter.levelIds.map((id) => LEVELS.find((l) => l.id === id)).filter(Boolean);
+  }
+
   function casesOf(level) {
     const sample = {
       detail: `${level.graph.nodes} 节点`,
@@ -986,5 +1007,5 @@
     return CPP[level.id] || null;
   }
 
-  return { LEVELS, casesOf, cppFor };
+  return { LEVELS, CHAPTERS, chapterLevels, casesOf, cppFor };
 });

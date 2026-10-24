@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  const { World, checkGoal, parse, parseCpp, Interp, LEVELS, casesOf, cppFor } = window.PTR;
+  const { World, checkGoal, parse, parseCpp, Interp, LEVELS, CHAPTERS, chapterLevels, casesOf, cppFor } = window.PTR;
   const LH = 22;
   const PALETTE = [
     "#ffd43b", "#4dabf7", "#ff6b6b", "#51cf66", "#cc5de8",
@@ -435,6 +435,8 @@
   // --------------------------------------------------------------------- app
   class App {
     constructor() {
+      this.chapterIndex = 0;
+      this.chapterLevels = chapterLevels(CHAPTERS[0]);
       this.levelIndex = 0;
       this.caseIndex = 0;
       this.lang = "py";
@@ -455,7 +457,6 @@
       this.editor.onStep = () => this.step();
 
       this.renderer = new Renderer($("stage"));
-      this.buildTabs();
 
       $("run").onclick = () => this.toggleRun();
       $("step").onclick = () => this.step();
@@ -466,33 +467,122 @@
       $("lang-cpp").onclick = () => this.setLang("cpp");
       $("case").onchange = () => this.onCase();
       $("submit").onclick = () => this.submit();
+      $("back-chapters").onclick = () => this.showChapters();
       $("speed").onchange = () => {
         if (this.running) { this.stopTimer(); this.startTimer(); }
       };
 
       const last = this.loadLast();
-      if (last) {
-        this.lang = last.lang === "cpp" ? "cpp" : "py";
-        this.editor.lang = this.lang;
-        $("lang-py").classList.toggle("on", this.lang === "py");
-        $("lang-cpp").classList.toggle("on", this.lang === "cpp");
-        $("file-name").textContent = this.lang === "cpp" ? "solution.cpp" : "solution.py";
-        this.selectLevel(Math.max(0, Math.min(LEVELS.length - 1, last.level | 0)));
-        if (last.case >= 0 && last.case < this.cases.length) {
-          this.caseIndex = last.case;
-          this.reset();
-          this.saveLast();
-        }
-      } else {
-        this.selectLevel(0);
+      if (last && last.lang === "cpp") {
+        this.lang = "cpp";
+        this.editor.lang = "cpp";
+        $("lang-py").classList.toggle("on", false);
+        $("lang-cpp").classList.toggle("on", true);
+        $("file-name").textContent = "solution.cpp";
       }
       this.updateProgress();
+      this.showChapters();
       this.loop();
     }
 
-    get level() { return LEVELS[this.levelIndex]; }
+    get chapter() { return CHAPTERS[this.chapterIndex]; }
+    get level() { return this.chapterLevels[this.levelIndex]; }
     get cases() { return casesOf(this.level); }
     get cpp() { return cppFor(this.level); }
+
+    isSolved(level, lang = this.lang) {
+      return !!localStorage.getItem(`ptr.solved.${level.id}.${lang}`);
+    }
+
+    anySolved(level) {
+      return this.isSolved(level, "py") || this.isSolved(level, "cpp");
+    }
+
+    chapterProgress(chapter) {
+      const levels = chapterLevels(chapter);
+      let py = 0, cpp = 0;
+      for (const lv of levels) {
+        if (this.isSolved(lv, "py")) py++;
+        if (this.isSolved(lv, "cpp")) cpp++;
+      }
+      return { py, cpp, total: levels.length };
+    }
+
+    chapterUnlocked(i) {
+      for (let k = 0; k < i; k++) {
+        const levels = chapterLevels(CHAPTERS[k]);
+        if (!levels.every((lv) => this.anySolved(lv))) return false;
+      }
+      return true;
+    }
+
+    levelUnlocked(i) {
+      if (i <= 0) return true;
+      const lv = this.chapterLevels[i];
+      if (!lv) return false;
+      if (this.isSolved(lv)) return true;
+      const prev = this.chapterLevels[i - 1];
+      return !!prev && this.isSolved(prev);
+    }
+
+    firstUnlocked() {
+      for (let i = 0; i < this.chapterLevels.length; i++) {
+        if (this.levelUnlocked(i) && !this.isSolved(this.chapterLevels[i])) return i;
+      }
+      for (let i = this.chapterLevels.length - 1; i >= 0; i--) {
+        if (this.levelUnlocked(i)) return i;
+      }
+      return 0;
+    }
+
+    showChapters() {
+      this.stopTimer();
+      this.running = false;
+      if ($("game-view")) $("game-view").hidden = true;
+      if ($("chapter-view")) $("chapter-view").hidden = false;
+      this.renderChapters();
+    }
+
+    renderChapters() {
+      const box = $("chapter-cards");
+      if (!box) return;
+      box.innerHTML = "";
+      CHAPTERS.forEach((ch, i) => {
+        const { py, cpp, total } = this.chapterProgress(ch);
+        const unlocked = this.chapterUnlocked(i);
+        const card = document.createElement("div");
+        card.className = "chapter-card" + (unlocked ? "" : " locked");
+        card.innerHTML =
+          `<h3>${esc(ch.title)}</h3><p>${esc(ch.subtitle)}</p>` +
+          `<div class="prog">Python ${py}/${total} · C++ ${cpp}/${total}</div>` +
+          (unlocked ? `<div class="lock">点击进入</div>` : `<div class="lock">完成上一章后解锁</div>`);
+        card.onclick = () => { if (unlocked) this.openChapter(i); };
+        box.appendChild(card);
+      });
+    }
+
+    openChapter(i) {
+      if (!this.chapterUnlocked(i)) return;
+      this.chapterIndex = i;
+      this.chapterLevels = chapterLevels(CHAPTERS[i]);
+      this.levelIndex = 0;
+      this.caseIndex = 0;
+      $("chapter-view").hidden = true;
+      $("game-view").hidden = false;
+
+      const last = this.loadLast();
+      let idx = this.firstUnlocked();
+      if (last && last.chapter === i && last.level >= 0 && last.level < this.chapterLevels.length && this.levelUnlocked(last.level)) {
+        idx = last.level;
+      }
+      this.selectLevel(idx);
+      if (last && last.chapter === i && last.level === idx && last.case >= 0 && last.case < this.cases.length) {
+        this.caseIndex = last.case;
+        this.buildCases();
+        this.reset();
+        this.saveLast();
+      }
+    }
 
     setLang(lang) {
       if (lang === this.lang) return;
@@ -501,7 +591,12 @@
       $("lang-py").classList.toggle("on", lang === "py");
       $("lang-cpp").classList.toggle("on", lang === "cpp");
       $("file-name").textContent = lang === "cpp" ? "solution.cpp" : "solution.py";
+      if (!this.levelUnlocked(this.levelIndex)) {
+        this.levelIndex = this.firstUnlocked();
+        this.caseIndex = 0;
+      }
       this.buildTabs();
+      this.refreshHeader();
       this.loadCode();
       this.reset();
       this.saveLast();
@@ -517,6 +612,7 @@
 
     saveLast() {
       localStorage.setItem("ptr.last", JSON.stringify({
+        chapter: this.chapterIndex,
         level: this.levelIndex,
         lang: this.lang,
         case: this.caseIndex,
@@ -561,25 +657,40 @@
     buildTabs() {
       const nav = $("levels");
       nav.innerHTML = "";
-      LEVELS.forEach((lv, i) => {
+      this.chapterLevels.forEach((lv, i) => {
         const b = document.createElement("button");
         b.innerHTML = `<b>${String(i + 1).padStart(2, "0")}</b>${lv.title}`;
-        if (localStorage.getItem(`ptr.solved.${lv.id}.${this.lang}`)) b.classList.add("solved");
+        if (this.isSolved(lv)) b.classList.add("solved");
+        if (!this.levelUnlocked(i)) b.classList.add("locked");
+        if (i === this.levelIndex) b.classList.add("on");
         b.onclick = () => this.selectLevel(i);
         nav.appendChild(b);
       });
     }
 
-    selectLevel(i) {
-      this.stopTimer();
-      this.levelIndex = i;
-      this.caseIndex = 0;
-      [...$("levels").children].forEach((b, k) => b.classList.toggle("on", k === i));
-
+    refreshHeader() {
       const lv = this.level;
       $("lv-title").textContent = lv.title;
       $("lv-brief").innerHTML = `<i class="diff">${esc(lv.difficulty || "")}</i>${esc(lv.brief)}`;
       $("hint").innerHTML = `<b>提示</b> ${esc(lv.hint)}`;
+      const ref = $("load-ref");
+      if (ref) {
+        ref.hidden = !this.chapter.reference;
+        ref.style.display = this.chapter.reference ? "" : "none";
+      }
+    }
+
+    selectLevel(i) {
+      if (!this.chapterLevels[i]) return;
+      if (!this.levelUnlocked(i)) {
+        this.setMsg("先完成上一关才能解锁", "");
+        return;
+      }
+      this.stopTimer();
+      this.levelIndex = i;
+      this.caseIndex = 0;
+      this.buildTabs();
+      this.refreshHeader();
       this.buildCases();
       this.loadCode();
       this.reset();
@@ -608,12 +719,12 @@
 
     markSolved() {
       localStorage.setItem(this.solvedKey(), "1");
-      const b = $("levels").children[this.levelIndex];
-      if (b) b.classList.add("solved");
       this.updateProgress();
+      this.buildTabs();
     }
 
     loadReference() {
+      if (!this.chapter.reference) return;
       const code = this.referenceFor();
       this.editor.setValue(code);
       localStorage.setItem(`ptr.code.${this.level.id}.${this.lang}`, code);

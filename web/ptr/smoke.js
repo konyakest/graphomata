@@ -42,6 +42,7 @@ class El {
 
 const IDs = [
   "levels", "case", "submit", "run", "step", "back", "reset", "load-ref", "speed",
+  "chapter-view", "game-view", "chapter-cards", "back-chapters",
   "lang-py", "lang-cpp", "file-name", "progress",
   "lv-title", "lv-brief", "hint", "code", "hl", "gutter", "line-hl", "line-err",
   "msg", "steps", "refs", "peak", "lastop", "verdict", "stage", "empty", "loadinfo",
@@ -93,18 +94,49 @@ const app = sandbox.__app;
 if (!app) throw new Error("app did not boot");
 
 let failures = 0;
-for (let i = 0; i < sandbox.PTR.LEVELS.length; i++) {
-  app.selectLevel(i);
-  app.editor.setValue(sandbox.PTR.LEVELS[i].reference);
-  app.reset();
-  app.submit();
-  const ok = app.status === "pass";
-  if (!ok) failures++;
-  console.log(`${ok ? "ok  " : "FAIL"} level ${i + 1}: status=${app.status} ${elements.get("msg").textContent}`);
+function check(name, cond, detail = "") {
+  if (cond) { console.log(`ok   ${name}`); return; }
+  failures++;
+  console.log(`FAIL ${name}${detail ? " — " + detail : ""}`);
 }
 
-// a solution that only handles the sample must fail the hidden case and load it
-app.selectLevel(3); // 04-ring: sample 4-chain, hidden 6-chain
+const PTR = sandbox.PTR;
+const cards = elements.get("chapter-cards");
+
+check("boots on chapter select", elements.get("chapter-view").hidden === false && elements.get("game-view").hidden === true);
+check("two chapters", cards.children.length === 2, `cards=${cards.children.length}`);
+check("chapter 2 starts locked", cards.children[1].className.includes("locked"));
+
+cards.children[0].onclick();
+check("chapter 1 opens", app.chapterIndex === 0 && elements.get("game-view").hidden === false);
+
+const ch1 = app.chapterLevels;
+for (let i = 0; i < ch1.length; i++) {
+  app.selectLevel(i);
+  app.editor.setValue(ch1[i].reference);
+  app.reset();
+  app.submit();
+  check(`chapter 1 level ${i + 1} passes`, app.status === "pass", elements.get("msg").textContent);
+  if (i + 1 < ch1.length) check(`level ${i + 2} unlocked`, app.levelUnlocked(i + 1));
+}
+check("reference visible in chapter 1", elements.get("load-ref").hidden !== true);
+
+app.showChapters();
+check("chapter 2 unlocked", app.chapterUnlocked(1) === true);
+app.openChapter(1);
+const ch2 = app.chapterLevels;
+for (let i = 0; i < ch2.length; i++) {
+  app.selectLevel(i);
+  app.editor.setValue(ch2[i].reference);
+  app.reset();
+  app.submit();
+  check(`chapter 2 level ${i + 1} passes`, app.status === "pass", elements.get("msg").textContent);
+}
+check("reference hidden in chapter 2", elements.get("load-ref").hidden === true);
+
+// sample-only solution must fail a hidden case and load it
+app.openChapter(0);
+app.selectLevel(3);
 app.editor.setValue([
   "def solve(s):",
   "    head = s",
@@ -117,33 +149,23 @@ app.editor.setValue([
 ].join("\n"));
 app.reset();
 app.submit();
-const caseVal = elements.get("case").value;
-if (app.status !== "fail" || caseVal !== "1") {
-  failures++;
-  console.log(`FAIL failing case: status=${app.status} case=${caseVal} ${elements.get("msg").textContent}`);
-} else {
-  console.log(`ok   failing case loaded: ${elements.get("msg").textContent}`);
-}
+check("hidden case fails and loads", app.status === "fail" && elements.get("case").value === "1", elements.get("msg").textContent);
 
-// Peak labels should be drawn: at some point the temp tag must appear.
-app.selectLevel(5);
-app.editor.setValue(sandbox.PTR.LEVELS[5].reference);
+// copy reference draws variable labels
+app.openChapter(1);
+app.selectLevel(0);
+app.editor.setValue(ch2[0].reference);
 app.reset();
 for (let i = 0; i < 3; i++) app.step();
 drawnText.length = 0;
 app.renderer.resize();
 app.renderer.draw();
-const hasName = drawnText.some((t) => t === "head" || t === "ss");
-if (!hasName) {
-  failures++;
-  console.log(`FAIL ref labels: ${JSON.stringify(drawnText.slice(0, 12))}`);
-} else {
-  console.log(`ok   ref labels drawn`);
-}
+check("ref labels drawn", drawnText.some((t) => t === "head" || t === "ss"), JSON.stringify(drawnText.slice(0, 8)));
 
-// step back/forward over recorded frames
+// step back / forward on the first level of chapter 1
+app.openChapter(0);
 app.selectLevel(0);
-app.editor.setValue(sandbox.PTR.LEVELS[0].reference);
+app.editor.setValue(ch1[0].reference);
 app.reset();
 app.step();
 app.step();
@@ -151,17 +173,9 @@ const at = app.frameIndex;
 app.back();
 const backOk = app.frameIndex === at - 1 && elements.get("steps").textContent === String(at - 1);
 app.step();
-const fwdOk = app.frameIndex === at;
-if (!backOk || !fwdOk) {
-  failures++;
-  console.log(`FAIL step back: at=${at} back=${backOk} fwd=${fwdOk}`);
-} else {
-  console.log("ok   step back / forward");
-}
+check("step back / forward", backOk && app.frameIndex === at, `at=${at}`);
 
-// drag a node: it should follow the pointer and stay pinned afterwards
-app.selectLevel(0);
-app.editor.setValue(sandbox.PTR.LEVELS[0].reference);
+// drag a node
 app.reset();
 app.renderer.resize();
 const node = app.renderer.nodes.get(0);
@@ -170,54 +184,24 @@ app.renderer.onDown({ clientX: node.x, clientY: node.y, preventDefault() {} });
 app.renderer.onMove({ clientX: node.x + 80, clientY: node.y + 40 });
 app.renderer.onUp();
 for (let i = 0; i < 30; i++) app.renderer.physics();
-const near = Math.hypot(node.x - (before.x + 80), node.y - (before.y + 40)) < 3;
-if (!near || !node.pinned) {
-  failures++;
-  console.log(`FAIL drag: near=${near} pinned=${node.pinned} pos=${node.x.toFixed(1)},${node.y.toFixed(1)}`);
-} else {
-  console.log("ok   node drag + pin");
-}
+check("node drag + pin", Math.hypot(node.x - (before.x + 80), node.y - (before.y + 40)) < 3 && node.pinned);
 
-// C++ mode: switch language, run the C++ reference, submit
-app.selectLevel(5); // copy
+// C++ mode
+app.openChapter(1);
 app.setLang("cpp");
-const cppRef = sandbox.PTR.cppFor(app.level).reference;
-app.editor.setValue(cppRef);
+app.editor.setValue(PTR.cppFor(app.level).reference);
 app.reset();
 app.submit();
-if (app.status !== "pass") {
-  failures++;
-  console.log(`FAIL cpp submit: ${elements.get("msg").textContent}`);
-} else {
-  console.log("ok   cpp submit");
-}
+check("cpp submit", app.status === "pass", elements.get("msg").textContent);
 app.setLang("py");
-if (!app.editor.value.includes("def solve")) {
-  failures++;
-  console.log("FAIL language switch back");
-} else {
-  console.log("ok   language switch back");
-}
+check("language switch back", app.editor.value.includes("def solve"));
 
 const lastRaw = store.get("ptr.last");
-let lastOk = false;
-try {
-  const last = JSON.parse(lastRaw);
-  lastOk = last.level === 5 && last.lang === "py";
-} catch (e) { /* ignore */ }
-if (!lastOk) {
-  failures++;
-  console.log(`FAIL last position: ${lastRaw}`);
-} else {
-  console.log(`ok   last position saved: ${lastRaw}`);
-}
+let last = null;
+try { last = JSON.parse(lastRaw); } catch (e) { /* ignore */ }
+check("last position saved", last && last.chapter === 1 && last.level === 0 && last.lang === "py", lastRaw);
 
 const prog = elements.get("progress").textContent;
-if (!/Python 12\/12/.test(prog) || !/C\+\+ 1\/12/.test(prog)) {
-  failures++;
-  console.log(`FAIL progress summary: ${prog}`);
-} else {
-  console.log(`ok   progress summary: ${prog}`);
-}
+check("progress summary", /Python 12\/12/.test(prog) && /C\+\+ 1\/12/.test(prog), prog);
 
 process.exit(failures ? 1 : 0);
