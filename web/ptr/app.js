@@ -538,8 +538,8 @@
     showChapters() {
       this.stopTimer();
       this.running = false;
-      if ($("game-view")) $("game-view").hidden = true;
-      if ($("chapter-view")) $("chapter-view").hidden = false;
+      if ($("game-view")) { $("game-view").hidden = true; $("game-view").style.display = "none"; }
+      if ($("chapter-view")) { $("chapter-view").hidden = false; $("chapter-view").style.display = ""; }
       this.renderChapters();
     }
 
@@ -568,7 +568,9 @@
       this.levelIndex = 0;
       this.caseIndex = 0;
       $("chapter-view").hidden = true;
+      $("chapter-view").style.display = "none";
       $("game-view").hidden = false;
+      $("game-view").style.display = "";
 
       const last = this.loadLast();
       let idx = this.firstUnlocked();
